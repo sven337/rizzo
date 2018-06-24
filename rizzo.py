@@ -449,7 +449,19 @@ def RizzoApply(sigfile=None):
     print "Signatures applied in %.2f seconds" % (end-start)
 
 
+def rizzo_produce(arg):
+    fname = idc.AskFile(1, "*.riz", "Save signature file as")
+    if fname:
+        if '.' not in fname:
+            fname += ".riz"
+        RizzoBuild(fname)
+    return None
 
+def rizzo_load(arg):
+    fname = idc.AskFile(0, "*.riz", "Load signature file")
+    if fname:
+        RizzoApply(fname)
+    return None
 
 class RizzoPlugin(idaapi.plugin_t):
     flags = 0
@@ -461,13 +473,76 @@ class RizzoPlugin(idaapi.plugin_t):
     NAME = "rizzo.py"
 
     def init(self):
-        self.menu_context_load = idaapi.add_menu_item("File/Load file/", "Rizzo signature file...", "", 0, self.rizzo_load, (None,))
-        self.menu_context_produce = idaapi.add_menu_item("File/Produce file/", "Rizzo signature file...", "", 0, self.rizzo_produce, (True,))
+        if idaapi.IDA_SDK_VERSION < 700:
+            self.menu_context_load = idaapi.add_menu_item("File/Load file/", "Rizzo signature file...", "", 0, rizzo_load, (None,))
+            self.menu_context_produce = idaapi.add_menu_item("File/Produce file/", "Rizzo signature file...", "", 0, rizzo_produce, (True,))
+        else:
+            class LoadHandler(idaapi.action_handler_t):
+                def __init__(self):
+                    idaapi.action_handler_t.__init__(self)
+
+                # Say hello when invoked.
+                def activate(self, ctx):
+                    return rizzo_load(None)
+
+                # This action is always available.
+                def update(self, ctx):
+                    return idaapi.AST_ENABLE_ALWAYS
+            
+            class ProduceHandler(idaapi.action_handler_t):
+                def __init__(self):
+                    idaapi.action_handler_t.__init__(self)
+
+                # Say hello when invoked.
+                def activate(self, ctx):
+                    return rizzo_produce(None)
+
+                # This action is always available.
+                def update(self, ctx):
+                    return idaapi.AST_ENABLE_ALWAYS
+
+            #populating action menus
+            action_desc = idaapi.action_desc_t(
+                'my:rizzoloadsig',
+                'Load Rizzo signatures',
+                LoadHandler(),
+                '',
+                'Load Rizzo signatures',
+                )
+
+            # Register the action
+            idaapi.register_action(action_desc)
+            idaapi.attach_action_to_menu(
+                'File/Load file/',
+                'my:rizzoloadsig',
+                idaapi.SETMENU_APP)
+
+            action_desc = idaapi.action_desc_t(
+                'my:rizzoproducesig',
+                'Produce Rizzo signatures',
+                ProduceHandler(),
+                '',
+                'Produce Rizzo signatures',
+                )
+
+            # Register the action
+            idaapi.register_action(action_desc)
+            idaapi.attach_action_to_menu(
+                'File/Produce file/',
+                'my:rizzoproducesig',
+                idaapi.SETMENU_APP)
         return idaapi.PLUGIN_KEEP
 
     def term(self):
-        idaapi.del_menu_item(self.menu_context_load)
-        idaapi.del_menu_item(self.menu_context_produce)
+        if idaapi.IDA_SDK_VERSION < 700:
+            idaapi.del_menu_item(self.menu_context_load)
+            idaapi.del_menu_item(self.menu_context_produce)
+        else:
+            idaapi.detach_action_from_menu('File/Load file/', 'my:rizzoloadsig')
+            idaapi.detach_action_from_menu('File/Produce file/', 'my:rizzoproducesig')
+            idaapi.unregister_action('my:rizzoloadsig')
+            idaapi.unregister_action('my:rizzoproducesig')
+
         return None
 
     def run(self, arg):
@@ -475,20 +550,6 @@ class RizzoPlugin(idaapi.plugin_t):
 
     def rizzo_script(self):
         idaapi.IDAPython_ExecScript(self.script, globals())
-
-    def rizzo_produce(self, arg):
-        fname = idc.AskFile(1, "*.riz", "Save signature file as")
-        if fname:
-            if '.' not in fname:
-                fname += ".riz"
-            RizzoBuild(fname)
-        return None
-
-    def rizzo_load(self, arg):
-        fname = idc.AskFile(0, "*.riz", "Load signature file")
-        if fname:
-            RizzoApply(fname)
-        return None
 
 def PLUGIN_ENTRY():
     return RizzoPlugin()
