@@ -361,9 +361,9 @@ class Rizzo(object):
         # The second tuple of each match is set to True if it is a fuzzy match, e.g.:
         #
         #   ((match, fuzzy), (match, fuzzy), ...)
-        return ((formal, False), (strings, False), (immediates, False), (fuzzy, True))
+        return ((formal, False, 'formal'), (strings, False, 'string'), (immediates, False, 'immed'), (fuzzy, True, 'fuzzy'))
 
-    def rename(self, ea, name):
+    def rename(self, ea, name, prefix):
         # Don't rely on the name in curfunc, as it could have already been renamed
         curname = idc.Name(ea)
         # Don't rename if the name is a special identifier, or if the ea has already been named
@@ -371,7 +371,7 @@ class Rizzo(object):
         if curname.startswith('sub_') and name.split('_')[0] not in set(['sub', 'loc', 'unk', 'dword', 'word', 'byte']):
             # Don't rename if the name already exists in the IDB
             if idc.LocByName(name) == idc.BADADDR:
-                if idc.MakeName(ea, name):
+                if idc.MakeName(ea, 'rizzo_' + prefix + '_' + name):
                     idc.SetFunctionFlags(ea, (idc.GetFunctionFlags(ea) | idc.FUNC_LIB))
                     #print "%s  =>  %s" % (curname, name)
                     return 1
@@ -385,7 +385,7 @@ class Rizzo(object):
         start = time.time()
 
         # This applies formal matches first, then fuzzy matches
-        for (match, fuzzy) in self.match(extsigs):
+        for (match, isfuzzy, prefix) in self.match(extsigs):
             # Keeps track of all function names that we've identified candidate functions for
             rename = {}
 
@@ -405,7 +405,7 @@ class Rizzo(object):
                     for cblock in curfunc.blocks:
                         cblock = RizzoBlockDescriptor(cblock)
 
-                        if cblock.match(nblock, fuzzy):
+                        if cblock.match(nblock, isfuzzy):
                             if bm.has_key(cblock):
                                 del bm[cblock]
                                 duplicates.add(cblock)
@@ -426,7 +426,7 @@ class Rizzo(object):
                 for (name, candidates) in rename.iteritems():
                     if candidates:
                         winner = collections.Counter(candidates).most_common(1)[0][0]
-                        count += self.rename(winner, name)
+                        count += self.rename(winner, name, prefix)
 
         end = time.time()
         print "Renamed %d functions in %.2f seconds." % (count, (end-start))
