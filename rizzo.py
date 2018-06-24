@@ -372,11 +372,12 @@ class Rizzo(object):
             # Don't rename if the name already exists in the IDB
             if idc.LocByName(name) == idc.BADADDR:
                 if idc.MakeName(ea, 'rizzo_' + prefix + '_' + name):
-                    idc.SetFunctionFlags(ea, (idc.GetFunctionFlags(ea) | idc.FUNC_LIB))
+#                    idc.SetFunctionFlags(ea, (idc.GetFunctionFlags(ea) | idc.FUNC_LIB))
+                    print "Renaming '%s'@%s to '%s'" % (curname, str(hex(ea)), name)
                     #print "%s  =>  %s" % (curname, name)
                     return 1
-            #else:
-            #    print "WARNING: Attempted to rename '%s' => '%s', but '%s' already exists!" % (curname, name, name)
+            else:
+                print "WARNING: Attempted to rename '%s'@%s => '%s', but '%s' already exists!" % (curname, str(hex(ea)), name, name)
         return 0
 
     def apply(self, extsigs):
