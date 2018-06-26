@@ -240,6 +240,21 @@ class Rizzo(object):
 
         return blocks
 
+    def process_function(self, func):
+        if not func:
+            return False
+
+        if func.size() <= 0x20:
+            # Do not do small functions: too many false positives
+            return False
+
+        fname = idc.Name(func.startEA)
+        if fname.startswith('sub_'):
+            # Do not get signatures for functions with default name
+            return False
+
+        return True
+
     def generate(self):
         signatures = RizzoSignatures()
 
@@ -248,7 +263,7 @@ class Rizzo(object):
             # Only generate signatures on reasonably long strings with one xref
             if len(string.value) >= 8 and len(string.xrefs) == 1:
                 func = idaapi.get_func(string.xrefs[0])
-                if func:
+                if self.process_function(func):
                     strhash = self.sighash(string.value)
 
                     # Check for and remove string duplicate signatures (the same
@@ -263,7 +278,8 @@ class Rizzo(object):
         # Generate formal, fuzzy, and immediate-based function signatures
         for ea in idautils.Functions():
             func = idaapi.get_func(ea)
-            if func:
+            if self.process_function(func):
+
                 # Generate a signature for each block in this function
                 blocks = self.function(func)
 
