@@ -108,9 +108,13 @@ class RizzoFunctionDescriptor(object):
     '''
 
     def __init__(self, signatures, functions, key):
-        self.ea = signatures[key]
-        self.name = functions[self.ea][0]
-        self.blocks = functions[self.ea][1]
+        try:
+            self.ea = signatures[key]
+            self.name = functions[self.ea][0]
+            self.blocks = functions[self.ea][1]
+        except KeyError, e:
+            print 'RizzoFunctionDescriptor.__init__ with key = ' + str(key) + ' got KeyError :' + repr(e)
+            self.ea = -1
 
 class Rizzo(object):
     '''
@@ -343,6 +347,8 @@ class Rizzo(object):
             if self.signatures.strings.has_key(extsig):
                 curfunc = RizzoFunctionDescriptor(self.signatures.strings, self.signatures.functions, extsig)
                 newfunc = RizzoFunctionDescriptor(extsigs.strings, extsigs.functions, extsig)
+                if newfunc.ea == -1:
+                    continue
                 strings[curfunc] = newfunc
         end = time.time()
         print "Found %d string matches in %.2f seconds." % (len(strings), (end-start))
@@ -353,6 +359,8 @@ class Rizzo(object):
             if self.signatures.immediates.has_key(extsig):
                 curfunc = RizzoFunctionDescriptor(self.signatures.immediates, self.signatures.functions, extsig)
                 newfunc = RizzoFunctionDescriptor(extsigs.immediates, extsigs.functions, extsig)
+                if newfunc.ea == -1:
+                    continue
                 immediates[curfunc] = newfunc
         end = time.time()
         print "Found %d immediate matches in %.2f seconds." % (len(immediates), (end-start))
